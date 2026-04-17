@@ -1,6 +1,7 @@
 # Sistema de Cálculo de Descontos para Marketplace
 
 ## Seu Nome: 
+Eduardo Henrique Moreira dos Santos
 
 ## Visão Geral do Projeto
 
