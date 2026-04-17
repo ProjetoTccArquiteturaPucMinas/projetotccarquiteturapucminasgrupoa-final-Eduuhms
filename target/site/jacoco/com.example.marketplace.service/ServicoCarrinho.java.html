@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServicoCarrinho.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">marketplace-discount</a> &gt; <a href="index.source.html" class="el_package">com.example.marketplace.service</a> &gt; <span class="el_source">ServicoCarrinho.java</span></div><h1>ServicoCarrinho.java</h1><pre class="source lang-java linenums">package com.example.marketplace.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.example.marketplace.model.CategoriaProduto;
 import com.example.marketplace.model.ItemCarrinho;
 import com.example.marketplace.model.Produto;
 import com.example.marketplace.model.ResumoCarrinho;
@@ -44,52 +44,51 @@ public class ServicoCarrinho {
 <span class="fc" id="L44">                .map(ItemCarrinho::calcularSubtotal)</span>
 <span class="fc" id="L45">                .reduce(BigDecimal.ZERO, BigDecimal::add);</span>
 
-        // =========================
-        // Calcula desconto por quantidade
-        // =========================
-<span class="fc" id="L50">        int totalItens = itens.stream().mapToInt(ItemCarrinho::getQuantidade).sum();</span>
-        BigDecimal percentualQuantidade;
-<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (totalItens &gt;= 4) {</span>
-<span class="fc" id="L53">            percentualQuantidade = new BigDecimal(&quot;10&quot;);</span>
-<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        } else if (totalItens == 3) {</span>
-<span class="nc" id="L55">            percentualQuantidade = new BigDecimal(&quot;7&quot;);</span>
-<span class="fc bfc" id="L56" title="All 2 branches covered.">        } else if (totalItens == 2) {</span>
-<span class="fc" id="L57">            percentualQuantidade = new BigDecimal(&quot;5&quot;);</span>
-        } else {
-<span class="fc" id="L59">            percentualQuantidade = BigDecimal.ZERO;</span>
-        }
+<span class="fc" id="L47">        int quantidadeTotalItens = itens.stream()</span>
+<span class="fc" id="L48">                .mapToInt(ItemCarrinho::getQuantidade)</span>
+<span class="fc" id="L49">                .sum();</span>
 
-        // =========================
-        // Calcula desconto por categoria (acumulado por item)
-        // =========================
-<span class="fc" id="L65">        BigDecimal percentualCategoria = itens.stream()</span>
-<span class="fc" id="L66">                .map(item -&gt; descontoPorCategoria(item.getProduto().getCategoria()))</span>
-<span class="fc" id="L67">                .reduce(BigDecimal.ZERO, BigDecimal::add);</span>
+<span class="fc" id="L51">        int percentualQuantidade = calcularPercentualPorQuantidade(quantidadeTotalItens);</span>
 
-        // =========================
-        // Aplica limite máximo de 25%
-        // =========================
-<span class="fc" id="L72">        BigDecimal percentualDesconto = percentualQuantidade.add(percentualCategoria)</span>
-<span class="fc" id="L73">                .min(new BigDecimal(&quot;25&quot;));</span>
+<span class="fc" id="L53">        int percentualCategoria = itens.stream()</span>
+<span class="fc" id="L54">                .mapToInt(this::calcularPercentualCategoriaPorItem)</span>
+<span class="fc" id="L55">                .sum();</span>
 
-        // =========================
-        // Calcula valor do desconto e total
-        // =========================
-<span class="fc" id="L78">        BigDecimal valorDesconto = subtotal.multiply(percentualDesconto)</span>
-<span class="fc" id="L79">                .divide(new BigDecimal(&quot;100&quot;));</span>
-<span class="fc" id="L80">        BigDecimal total = subtotal.subtract(valorDesconto);</span>
+<span class="fc" id="L57">        int percentualTotal = Math.min(25, percentualQuantidade + percentualCategoria);</span>
 
-<span class="fc" id="L82">        return new ResumoCarrinho(itens, subtotal, percentualDesconto, valorDesconto, total);</span>
+<span class="fc" id="L59">        BigDecimal percentualDesconto = BigDecimal.valueOf(percentualTotal).setScale(2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L60">        BigDecimal valorDesconto = subtotal</span>
+<span class="fc" id="L61">                .multiply(percentualDesconto)</span>
+<span class="fc" id="L62">                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L63">        BigDecimal total = subtotal.subtract(valorDesconto).setScale(2, RoundingMode.HALF_UP);</span>
+
+<span class="fc" id="L65">        return new ResumoCarrinho(itens, subtotal, percentualDesconto, valorDesconto, total);</span>
     }
 
-    private BigDecimal descontoPorCategoria(CategoriaProduto categoria) {
-<span class="fc bfc" id="L86" title="All 5 branches covered.">        return switch (categoria) {</span>
-<span class="fc" id="L87">            case CAPINHA -&gt; new BigDecimal(&quot;3&quot;);</span>
-<span class="fc" id="L88">            case CARREGADOR -&gt; new BigDecimal(&quot;5&quot;);</span>
-<span class="fc" id="L89">            case FONE -&gt; new BigDecimal(&quot;3&quot;);</span>
-<span class="fc" id="L90">            case PELICULA -&gt; new BigDecimal(&quot;2&quot;);</span>
-<span class="fc" id="L91">            case SUPORTE -&gt; new BigDecimal(&quot;2&quot;);</span>
+    private int calcularPercentualPorQuantidade(int quantidadeTotalItens) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (quantidadeTotalItens &gt;= 4) {</span>
+<span class="fc" id="L70">            return 10;</span>
+        }
+
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if (quantidadeTotalItens == 3) {</span>
+<span class="nc" id="L74">            return 7;</span>
+        }
+
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (quantidadeTotalItens == 2) {</span>
+<span class="fc" id="L78">            return 5;</span>
+        }
+
+<span class="fc" id="L81">        return 0;</span>
+    }
+
+    private int calcularPercentualCategoriaPorItem(ItemCarrinho item) {
+<span class="fc bfc" id="L85" title="All 3 branches covered.">        int percentualCategoria = switch (item.getProduto().getCategoria()) {</span>
+<span class="fc" id="L86">            case CAPINHA, FONE -&gt; 3;</span>
+<span class="fc" id="L87">            case CARREGADOR -&gt; 5;</span>
+<span class="fc" id="L88">            case PELICULA, SUPORTE -&gt; 2;</span>
         };
+
+<span class="fc" id="L91">        return percentualCategoria * item.getQuantidade();</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
